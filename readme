@@ -1,0 +1,208 @@
+===========================================================================
+1、第一天系统的搭建                                                                                   2018-02-17
+===========================================================================
+1、Maven tomcat的启动
+2、热启动，
+（1）首先配置tomcat的密码和用户
+（2）在pom文件中添加
+  <build>
+   <plugins>
+      <plugin>
+      	<groupId>org.apache.tomcat.maven</groupId>
+      	<artifactId>tomcat7-maven-plugin</artifactId>
+      	<version>2.2</version>
+      	<configuration>
+      		<url>http://localhost:8080/manager/text</url>
+       		<path>/</path>
+      		<server>tomcat</server>
+      		<username>niu</username>
+      		<password>123456</password>
+      	</configuration>
+      </plugin>
+    </plugins>
+   </build>
+（3）在maven build...中运行tomcat7:redeploy
+3、SpringMVC Mybatis 环境配置
+
+监听器配置
+分类配置：
+注解
+anotation.xml
+
+jdbc.xml
+事务
+transaction.xml
+
+mybatis.xml
+
+springmvc+hibernate.xml
+
+
+4、配置anotation.xml 注解文件
+     配置jdbc.xml 配置c3p0数据源
+     配置property.xml 配置属性文件
+
+5、监听器在
+web.xml配置
+(1)spring-web-3.2.4.RELEASE.jar     ContextLoaderListener
+<!-- 读取Spring 配置文件 -->
+<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>classpath:application-context.xml</param-value>
+</context-param>
+
+(2)
+anotation.xml配置
+controller在spring-context-3.2.4.RELEASE.jar 包中
+	spring-context-3.2.4.RELEASE.jar   Controller
+	
+	<!--spring 扫包   @Service .....-->
+	<context:component-scan base-package="cn.itcast">
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+	</context:component-scan>
+	<!-- 自动装配 -->
+	<context:annotation-config/>
+
+(3)jdbc.xml配置
+
+c3p0 在c3p0-0.9.1.2.jar  ComboPooledDataSource
+	<!-- c3p0
+	 1、多个数据库
+	 2、自动重连
+	 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${driverClass}"/>
+		<property name="jdbcUrl" value="${jdbcUrl}"></property>
+		<property name="user" value="${user}" />
+		<property name="password" value="${password}"/>
+	</bean>
+	
+(4)mybatis.xml配置
+
+	<!-- mybatis session 工厂 -->
+	<bean id="SqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="mapperLocations" value="classpath:cn/itcast/core/dao/*.xml"></property>
+		<!-- 别名 -->
+		<property name="typeAliasesPackage" value="cn.itcast.core.pojo"></property>
+	</bean>
+	<!-- 扫包 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="cn.itcast.core.dao"></property>
+	</bean>
+
+(5)property.xml配置
+	<!--读取jdbc的配置文件 -->
+	<bean
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<!-- jdbc的配置 -->
+				<value>classpath:properties/jdbc.properties</value>
+			</list>
+		</property>
+
+(6)transaction.xml配置
+	<!-- Spring 事务  -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+	<!-- 开启事务注释 -->
+	<tx:annotation-driven transaction-manager="transactionManager" />
+
+6、Service层的注解
+
+package cn.itcast.core.service;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import cn.itcast.core.dao.TestDao;
+import cn.itcast.core.pojo.Admin;
+@Service
+@Transactional
+public class TestServiceImpl implements TestService{
+	@Resource
+	private TestDao testDao;
+	@Override
+	public void addTset(Admin admin) {
+		testDao.addTset(admin);
+		//throw new RuntimeException("测试异常");
+	}
+}
+
+7、测试层的注解
+
+8、SpringMVC 的配置
+(1)web.xml中配置springmvc
+
+	<!-- 读取SpringMVC 前台 配置文件 -->
+	<servlet>
+		<servlet-name>front</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>classpath:springmvc-front.xml</param-value>
+		</init-param>
+	</servlet>
+	<!-- 定义访问路径 -->
+	<servlet-mapping>
+		<servlet-name>front</servlet-name>
+		<url-pattern>*.shtml</url-pattern>
+	</servlet-mapping>
+	<!-- 读取SpringMVC 后台 配置文件 -->
+	<servlet>
+		<servlet-name>back</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>classpath:springmvc-back.xml</param-value>
+		</init-param>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>back</servlet-name>
+		<url-pattern>*.do</url-pattern>
+	</servlet-mapping>
+(2)扫包、视图配置
+	springmvc-front.xml
+	
+	<!--SpringMVC 扫包 只扫@Controller -->
+	<context:component-scan base-package="cn.itcast"
+		use-default-filters="false">
+		<!-- 包含 -->
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+	<context:annotation-config />
+	<!-- jsp视图  -->
+	<bean id="JspViewResolver"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INFO/front_page/"></property>
+		<property name="suffix" value=".jsp"></property>
+	</bean>
+	
+	springmvc-back.xml
+	
+	<!--SpringMVC 扫包 只扫@Controller -->
+	<context:component-scan base-package="cn.itcast"
+		use-default-filters="false">
+		<!-- 包含 -->
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+	<context:annotation-config />
+	<!-- jsp视图 -->
+	<bean id="JspViewResolver"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="WEB-INF/back_page/"></property>
+		<property name="suffix" value=".jsp"></property>
+	</bean>
+
+	
+
+
+
+
